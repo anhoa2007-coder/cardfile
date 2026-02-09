@@ -14,4 +14,5 @@ To compile the app:
 - You need to download `pyinstaller`
 - Navigate to the directory using `cd path\to\cardfile`
 - And run `python -m PyInstaller --onefile --windowed --name "CardFile" main.py`
+
 Full tutorial on `build.md`
