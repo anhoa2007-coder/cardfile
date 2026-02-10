@@ -221,6 +221,14 @@
   ('urllib.parse', 'C:\\Python314\\Lib\\urllib\\parse.py', 'PYMODULE'),
   ('urllib.request', 'C:\\Python314\\Lib\\urllib\\request.py', 'PYMODULE'),
   ('urllib.response', 'C:\\Python314\\Lib\\urllib\\response.py', 'PYMODULE'),
+  ('utils',
+   'C:\\Users\\Expedition '
+   '33\\.gemini\\antigravity\\scratch\\cardfile\\utils\\__init__.py',
+   'PYMODULE'),
+  ('utils.window_utils',
+   'C:\\Users\\Expedition '
+   '33\\.gemini\\antigravity\\scratch\\cardfile\\utils\\window_utils.py',
+   'PYMODULE'),
   ('zipfile', 'C:\\Python314\\Lib\\zipfile\\__init__.py', 'PYMODULE'),
   ('zipfile._path',
    'C:\\Python314\\Lib\\zipfile\\_path\\__init__.py',

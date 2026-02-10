@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from cardfile import CardFile
 from ui.dialogs import AddEditCardDialog, SearchDialog, GoToDialog, AboutDialog
+from utils.window_utils import apply_dark_mode
 
 
 class MainWindow:
@@ -38,6 +39,9 @@ class MainWindow:
         self.last_search_query = ""
         self.search_dialog = None
         
+        # Initialize dark mode variable (needed for menu)
+        self.is_dark_mode = tk.BooleanVar(value=True)
+        
         # Build UI
         self.create_menu()
         self.create_toolbar()
@@ -45,11 +49,15 @@ class MainWindow:
         self.create_card_view()
         self.create_status_bar()
         
+        # Apply theme (needs UI elements to be ready)
+        self.apply_theme()
+        
         # Bind keyboard shortcuts
         self.bind_shortcuts()
         
         # Start with one card
         self.cardfile.add_card("Welcome", "Welcome to CardFile!\n\nClick Edit > Add Card or press Ctrl+N to create a new card.")
+        
         self.refresh_ui()
     
     def create_menu(self):
@@ -75,17 +83,18 @@ class MainWindow:
         edit_menu.add_command(label="Edit Card", command=self.edit_card, accelerator="F2")
         edit_menu.add_command(label="Duplicate Card", command=self.duplicate_card, accelerator="Ctrl+D")
         edit_menu.add_separator()
-        edit_menu.add_command(label="Delete Card", command=self.delete_card, accelerator="Delete")
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Go To...", command=self.goto_card, accelerator="Ctrl+G")
+        edit_menu.add_command(label="Find...", command=self.find_card, accelerator="Ctrl+F")
+        edit_menu.add_command(label="Find Next", command=self.find_next, accelerator="F3")
+        edit_menu.add_separator()
+        edit_menu.add_command(label="Previous Card", command=self.previous_card, accelerator="Ctrl+PgUp")
+        edit_menu.add_command(label="Next Card", command=self.next_card, accelerator="Ctrl+PgDn")
         
-        # Card menu
-        card_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Card", menu=card_menu)
-        card_menu.add_command(label="Go To...", command=self.goto_card, accelerator="Ctrl+G")
-        card_menu.add_command(label="Find...", command=self.find_card, accelerator="Ctrl+F")
-        card_menu.add_command(label="Find Next", command=self.find_next, accelerator="F3")
-        card_menu.add_separator()
-        card_menu.add_command(label="Previous Card", command=self.previous_card, accelerator="Ctrl+PgUp")
-        card_menu.add_command(label="Next Card", command=self.next_card, accelerator="Ctrl+PgDn")
+        # View menu
+        view_menu = tk.Menu(menubar, tearoff=0)
+        menubar.add_cascade(label="View", menu=view_menu)
+        view_menu.add_checkbutton(label="Dark Mode", variable=self.is_dark_mode, command=self.apply_theme)
         
         # Help menu
         help_menu = tk.Menu(menubar, tearoff=0)
@@ -418,3 +427,21 @@ class MainWindow:
     def show_about(self):
         """Show About dialog."""
         AboutDialog(self.root)
+
+    def apply_theme(self):
+        """Apply the current theme settings."""
+        is_dark = self.is_dark_mode.get()
+        apply_dark_mode(self.root, is_dark)
+        
+        # UI Colors
+        bg_color = "#2d2d2d" if is_dark else "#f9f9f9"
+        fg_color = "#ffffff" if is_dark else "#000000"
+        
+        # Content Text
+        self.content_text.config(bg=bg_color, fg=fg_color, insertbackground=fg_color)
+        
+        # Title Label (Inherits from frame usually, but let's be explicit if needed)
+        # For ttk widgets, we should use styles, but direct configuration works for some properties
+        # Ideally we'd configure a dark theme for ttk, but that's more involved.
+        # Let's stick to the requested changes for now which seem focused on the main content area look.
+

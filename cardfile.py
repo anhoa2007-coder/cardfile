@@ -142,7 +142,7 @@ class CardFile:
         
         try:
             data = {
-                "version": "1.0",
+                "version": "1.0.1",
                 "cards": [card.to_dict() for card in self.cards]
             }
             save_path = Path(save_path)

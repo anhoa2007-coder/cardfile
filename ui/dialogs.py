@@ -194,7 +194,7 @@ class AboutDialog(BaseDialog):
         
         # App name
         ttk.Label(main_frame, text="CardFile", font=("Segoe UI", 16, "bold")).pack()
-        ttk.Label(main_frame, text="Version 1.0").pack(pady=(5, 15))
+        ttk.Label(main_frame, text="Version 1.0.1").pack(pady=(5, 15))
         
         # Description
         ttk.Label(main_frame, text="A personal information manager\ninspired by Windows 3.1 CardFile",
