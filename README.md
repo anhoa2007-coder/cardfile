@@ -8,6 +8,8 @@ It have so many basic features, such as:
 - Basic search of cards
 - Duplicate cards
 - Basic UI control
+- (soon) Export to Markdown
+- (soon) redesigned UI
 ___
 ## How do you compile it?
 To compile the app:
