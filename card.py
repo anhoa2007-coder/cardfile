@@ -54,3 +54,13 @@ class Card:
         if len(self.title) <= max_length:
             return self.title
         return self.title[:max_length - 3] + "..."
+    
+    def to_markdown_row(self, include_metadata: bool = True) -> str:
+        """Convert card to a Markdown table row."""
+        title = self.title.replace("|", "\\|")
+        content = self.content.replace("|", "\\|").replace("\n", "<br>")
+        if include_metadata:
+            created = self.created.strftime("%Y-%m-%d %H:%M")
+            modified = self.modified.strftime("%Y-%m-%d %H:%M")
+            return f"| {title} | {content} | {created} | {modified} |"
+        return f"| {title} | {content} |"

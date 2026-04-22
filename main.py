@@ -9,14 +9,14 @@ from ui.main_window import MainWindow
 
 def main():
     """Application entry point."""
-    root = tk.Tk()
-    
-    # Set DPI awareness for Windows 10/11
+    # Set DPI awareness for Windows 10/11 (must be before Tk())
     try:
         from ctypes import windll
         windll.shcore.SetProcessDpiAwareness(1)
     except Exception:
         pass
+    
+    root = tk.Tk()
     
     # Create and run application
     app = MainWindow(root)

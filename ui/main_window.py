@@ -9,7 +9,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from cardfile import CardFile
 from ui.dialogs import AddEditCardDialog, SearchDialog, GoToDialog, AboutDialog
-from utils.window_utils import apply_dark_mode
+from ui.custom_button import make_toolbar_button, theme_toolbar_button
+from utils.window_utils import apply_dark_mode, get_colors, style_menu, is_system_dark_mode
 
 
 class MainWindow:
@@ -39,8 +40,10 @@ class MainWindow:
         self.last_search_query = ""
         self.search_dialog = None
         
-        # Initialize dark mode variable (needed for menu)
-        self.is_dark_mode = tk.BooleanVar(value=True)
+        # Initialize dark mode variable — auto-detect from system theme
+        self.is_dark_mode = tk.BooleanVar(value=is_system_dark_mode())
+        # Expose on root so dialogs can detect the current theme
+        self.root.is_dark_mode = self.is_dark_mode
         
         # Build UI
         self.create_menu()
@@ -74,6 +77,8 @@ class MainWindow:
         file_menu.add_command(label="Save", command=self.save_file, accelerator="Ctrl+S")
         file_menu.add_command(label="Save As...", command=self.save_file_as)
         file_menu.add_separator()
+        file_menu.add_command(label="Export to Markdown...", command=self.export_markdown, accelerator="Ctrl+E")
+        file_menu.add_separator()
         file_menu.add_command(label="Exit", command=self.on_close)
         
         # Edit menu
@@ -102,21 +107,38 @@ class MainWindow:
         help_menu.add_command(label="About CardFile", command=self.show_about)
     
     def create_toolbar(self):
-        """Create toolbar with common actions."""
+        """Create toolbar with custom styled buttons."""
+        colors = get_colors(self.is_dark_mode.get())
         toolbar = ttk.Frame(self.root, padding="5")
         toolbar.pack(fill="x")
         
+        self._toolbar_buttons = []  # track for theme updates
+        
+        def _add_btn(parent, text, cmd, w=90, gap=(0, 3)):
+            btn = make_toolbar_button(parent, text, cmd, colors, width=w, height=28)
+            btn.pack(side="left", padx=gap)
+            self._toolbar_buttons.append(btn)
+            return btn
+        
         # Navigation buttons
-        ttk.Button(toolbar, text="◀ Prev", command=self.previous_card, width=8).pack(side="left", padx=(0, 2))
-        ttk.Button(toolbar, text="Next ▶", command=self.next_card, width=8).pack(side="left", padx=(0, 10))
+        _add_btn(toolbar, "◀  Prev", self.previous_card)
+        _add_btn(toolbar, "Next  ▶", self.next_card, gap=(0, 10))
+        
+        # Separator
+        sep1 = ttk.Separator(toolbar, orient="vertical")
+        sep1.pack(side="left", fill="y", padx=(0, 10), pady=2)
         
         # Card actions
-        ttk.Button(toolbar, text="+ Add", command=self.add_card, width=8).pack(side="left", padx=(0, 2))
-        ttk.Button(toolbar, text="✎ Edit", command=self.edit_card, width=8).pack(side="left", padx=(0, 2))
-        ttk.Button(toolbar, text="🗑 Delete", command=self.delete_card, width=8).pack(side="left", padx=(0, 10))
+        _add_btn(toolbar, "+  Add", self.add_card)
+        _add_btn(toolbar, "✎  Edit", self.edit_card)
+        _add_btn(toolbar, "🗑  Delete", self.delete_card, gap=(0, 10))
+        
+        # Separator
+        sep2 = ttk.Separator(toolbar, orient="vertical")
+        sep2.pack(side="left", fill="y", padx=(0, 10), pady=2)
         
         # Search
-        ttk.Button(toolbar, text="🔍 Find", command=self.find_card, width=8).pack(side="left")
+        _add_btn(toolbar, "🔍  Find", self.find_card)
     
     def create_index_bar(self):
         """Create horizontal index bar showing card tabs."""
@@ -125,7 +147,7 @@ class MainWindow:
         
         # Scrollable frame for tabs
         self.index_canvas = tk.Canvas(index_frame, height=40, highlightthickness=0)
-        self.index_scrollbar = ttk.Scrollbar(index_frame, orient="horizontal", 
+        self.index_scrollbar = tk.Scrollbar(index_frame, orient="horizontal", 
                                               command=self.index_canvas.xview)
         self.index_inner = ttk.Frame(self.index_canvas)
         
@@ -167,12 +189,12 @@ class MainWindow:
         self.content_text = tk.Text(content_frame, wrap="word", font=("Segoe UI", 10),
                                      state="disabled", bg="#f9f9f9", relief="flat",
                                      padx=10, pady=10)
-        scrollbar = ttk.Scrollbar(content_frame, orient="vertical", 
+        self.content_scrollbar = tk.Scrollbar(content_frame, orient="vertical",
                                    command=self.content_text.yview)
-        self.content_text.configure(yscrollcommand=scrollbar.set)
+        self.content_text.configure(yscrollcommand=self.content_scrollbar.set)
         
         self.content_text.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
+        self.content_scrollbar.pack(side="right", fill="y")
         
         # Double-click to edit
         self.content_text.bind("<Double-Button-1>", lambda e: self.edit_card())
@@ -190,6 +212,7 @@ class MainWindow:
         self.root.bind("<Control-s>", lambda e: self.save_file())
         self.root.bind("<Control-n>", lambda e: self.add_card())
         self.root.bind("<Control-d>", lambda e: self.duplicate_card())
+        self.root.bind("<Control-e>", lambda e: self.export_markdown())
         self.root.bind("<Delete>", lambda e: self.delete_card())
         self.root.bind("<F2>", lambda e: self.edit_card())
         self.root.bind("<Control-g>", lambda e: self.goto_card())
@@ -215,6 +238,7 @@ class MainWindow:
             widget.destroy()
         
         # Create tabs for each card
+        colors = get_colors(self.is_dark_mode.get())
         for i, card in enumerate(self.cardfile.cards):
             text = card.get_index_title(15)
             
@@ -222,11 +246,21 @@ class MainWindow:
                 # Current card gets a distinct look
                 btn = tk.Button(self.index_inner, text=text,
                                command=lambda idx=i: self.navigate_to(idx),
-                               relief="sunken", bg="#e0e0e0", padx=8, pady=4)
+                               relief="sunken",
+                               bg=colors["selected_bg"],
+                               fg=colors["selected_fg"],
+                               activebackground=colors["accent"],
+                               activeforeground=colors["fg_bright"],
+                               padx=8, pady=4)
             else:
                 btn = tk.Button(self.index_inner, text=text,
                                command=lambda idx=i: self.navigate_to(idx),
-                               relief="raised", padx=8, pady=4)
+                               relief="raised",
+                               bg=colors["button_bg"],
+                               fg=colors["button_fg"],
+                               activebackground=colors["button_active"],
+                               activeforeground=colors["fg_bright"],
+                               padx=8, pady=4)
             
             btn.pack(side="left", padx=2, pady=4)
     
@@ -424,24 +458,137 @@ class MainWindow:
     
     # --- Help ---
     
+    def export_markdown(self):
+        """Export cards to a Markdown table file."""
+        if not self.cardfile.cards:
+            messagebox.showinfo("Export", "No cards to export.")
+            return
+        
+        filepath = filedialog.asksaveasfilename(
+            title="Export to Markdown",
+            defaultextension=".md",
+            filetypes=[("Markdown files", "*.md"), ("All files", "*.*")]
+        )
+        
+        if filepath:
+            if self.cardfile.export_to_markdown(Path(filepath)):
+                messagebox.showinfo("Export", "Cards exported successfully.")
+            else:
+                messagebox.showerror("Error", "Failed to export cards.")
+    
     def show_about(self):
         """Show About dialog."""
         AboutDialog(self.root)
 
     def apply_theme(self):
-        """Apply the current theme settings."""
+        """Apply the current theme to all UI elements."""
         is_dark = self.is_dark_mode.get()
+        colors = get_colors(is_dark)
+
+        # --- Win32 dark title bar ---
         apply_dark_mode(self.root, is_dark)
-        
-        # UI Colors
-        bg_color = "#2d2d2d" if is_dark else "#f9f9f9"
-        fg_color = "#ffffff" if is_dark else "#000000"
-        
-        # Content Text
-        self.content_text.config(bg=bg_color, fg=fg_color, insertbackground=fg_color)
-        
-        # Title Label (Inherits from frame usually, but let's be explicit if needed)
-        # For ttk widgets, we should use styles, but direct configuration works for some properties
-        # Ideally we'd configure a dark theme for ttk, but that's more involved.
-        # Let's stick to the requested changes for now which seem focused on the main content area look.
+
+        # --- Root window background ---
+        self.root.configure(bg=colors["bg"])
+
+        # --- ttk Styles ---
+        s = self.style
+
+        s.configure("TFrame", background=colors["bg"])
+        s.configure("TLabel", background=colors["bg"], foreground=colors["fg"])
+        s.configure("TLabelframe", background=colors["bg"], foreground=colors["fg"])
+        s.configure("TLabelframe.Label", background=colors["bg"], foreground=colors["fg"])
+        s.configure("TButton",
+                     background=colors["button_bg"],
+                     foreground=colors["button_fg"])
+        s.map("TButton",
+              background=[("active", colors["button_active"]),
+                          ("pressed", colors["accent"])],
+              foreground=[("active", colors["fg_bright"])])
+        s.configure("TCheckbutton", background=colors["bg"], foreground=colors["fg"])
+        s.map("TCheckbutton",
+              background=[("active", colors["bg"])],
+              foreground=[("active", colors["fg"])])
+        s.configure("TEntry",
+                     fieldbackground=colors["bg_input"],
+                     foreground=colors["fg"],
+                     insertcolor=colors["fg"])
+        s.configure("TScrollbar",
+                     background=colors["scrollbar_bg"],
+                     troughcolor=colors["bg_alt"])
+
+        # --- tk.Scrollbar widgets (fully customizable) ---
+        scrollbar_opts = dict(
+            bg=colors["scrollbar_bg"],
+            troughcolor=colors["bg_alt"],
+            activebackground=colors["scrollbar_fg"],
+            highlightthickness=0,
+            borderwidth=0,
+            width=14,
+        )
+        if hasattr(self, 'index_scrollbar'):
+            self.index_scrollbar.configure(**scrollbar_opts)
+        if hasattr(self, 'content_scrollbar'):
+            self.content_scrollbar.configure(**scrollbar_opts)
+
+        # Specific style for selected index button (ttk)
+        s.configure("Index.TButton", padding=(8, 4))
+        s.configure("Selected.TButton", padding=(8, 4))
+
+        # --- Menu bar ---
+        menubar = self.root.nametowidget(self.root.cget("menu"))
+        style_menu(menubar, colors)
+
+        # --- Index canvas ---
+        self.index_canvas.configure(
+            bg=colors["bg_alt"],
+            highlightthickness=0,
+        )
+
+        # --- Content text ---
+        self.content_text.configure(
+            bg=colors["bg_elevated"],
+            fg=colors["fg"],
+            insertbackground=colors["fg"],
+            selectbackground=colors["accent"],
+            selectforeground=colors["fg_bright"],
+        )
+
+        # --- Toolbar custom buttons ---
+        if hasattr(self, '_toolbar_buttons'):
+            for btn in self._toolbar_buttons:
+                theme_toolbar_button(btn, colors)
+
+        # --- Refresh index tabs with theme-aware colors ---
+        self._theme_index_tabs(colors)
+
+    # -------------------------------------------------------
+    def _theme_index_tabs(self, colors: dict):
+        """Re-color the index bar tab buttons for the current theme."""
+        for widget in self.index_inner.winfo_children():
+            if isinstance(widget, tk.Button):
+                is_selected = (widget.cget("relief") == "sunken")
+                if is_selected:
+                    widget.configure(
+                        bg=colors["selected_bg"],
+                        fg=colors["selected_fg"],
+                        activebackground=colors["accent"],
+                        activeforeground=colors["fg_bright"],
+                    )
+                else:
+                    widget.configure(
+                        bg=colors["button_bg"],
+                        fg=colors["button_fg"],
+                        activebackground=colors["button_active"],
+                        activeforeground=colors["fg_bright"],
+                    )
+
+    # -------------------------------------------------------
+    def apply_theme_to_toplevel(self, toplevel):
+        """Apply the current theme to a Toplevel dialog window."""
+        is_dark = self.is_dark_mode.get()
+        colors = get_colors(is_dark)
+        apply_dark_mode(toplevel, is_dark)
+        toplevel.configure(bg=colors["bg"])
+
 

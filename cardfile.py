@@ -175,3 +175,23 @@ class CardFile:
         name = self.filepath.stem if self.filepath else "Untitled"
         modified_indicator = " *" if self.modified else ""
         return f"{name}{modified_indicator} - CardFile"
+    
+    def export_to_markdown(self, filepath: Path, include_metadata: bool = True) -> bool:
+        """Export all cards to a Markdown table file."""
+        try:
+            name = self.filepath.stem if self.filepath else "CardFile"
+            lines = [f"# {name}", ""]
+            if include_metadata:
+                lines.append("| Title | Content | Created | Modified |")
+                lines.append("|-------|---------|---------|----------|")
+            else:
+                lines.append("| Title | Content |")
+                lines.append("|-------|---------|")
+            for card in self.cards:
+                lines.append(card.to_markdown_row(include_metadata))
+            lines.append("")
+            Path(filepath).write_text("\n".join(lines), encoding="utf-8")
+            return True
+        except Exception as e:
+            print(f"Error exporting to Markdown: {e}")
+            return False

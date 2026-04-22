@@ -3,6 +3,8 @@
 import tkinter as tk
 from tkinter import ttk
 from typing import Optional, Callable
+from utils.window_utils import apply_dark_mode, get_colors
+from ui.custom_button import make_toolbar_button
 
 
 class BaseDialog(tk.Toplevel):
@@ -21,6 +23,9 @@ class BaseDialog(tk.Toplevel):
         # Result
         self.result = None
         
+        # Detect parent dark mode and apply theme to dialog
+        self._apply_dialog_theme(parent)
+        
         # Build UI
         self.create_widgets()
         
@@ -32,6 +37,27 @@ class BaseDialog(tk.Toplevel):
         
         # Bind Escape to close
         self.bind("<Escape>", lambda e: self.cancel())
+    
+    def _apply_dialog_theme(self, parent):
+        """Apply dark/light theme to dialog based on parent window state."""
+        # Try to detect dark mode from the parent MainWindow
+        self._is_dark = False
+        try:
+            # Walk up to find the MainWindow instance
+            top = parent
+            if hasattr(top, "is_dark_mode"):
+                self._is_dark = top.is_dark_mode.get()
+            elif hasattr(top, "master") and hasattr(top.master, "is_dark_mode"):
+                self._is_dark = top.master.is_dark_mode.get()
+        except Exception:
+            pass
+        
+        self._colors = get_colors(self._is_dark)
+        self.configure(bg=self._colors["bg"])
+        
+        # Apply DWM dark title bar
+        self.update_idletasks()
+        apply_dark_mode(self, self._is_dark)
     
     def create_widgets(self):
         """Override in subclasses to build UI."""
@@ -54,7 +80,7 @@ class AddEditCardDialog(BaseDialog):
                  initial_title: str = "", initial_content: str = ""):
         self.initial_title = initial_title
         self.initial_content = initial_content
-        super().__init__(parent, title, width=450, height=350)
+        super().__init__(parent, title, width=450, height=400)
     
     def create_widgets(self):
         # Main frame with padding
@@ -74,9 +100,19 @@ class AddEditCardDialog(BaseDialog):
         content_frame = ttk.Frame(main_frame)
         content_frame.pack(fill="both", expand=True, pady=(0, 10))
         
-        self.content_text = tk.Text(content_frame, wrap="word", height=10)
-        scrollbar = ttk.Scrollbar(content_frame, orient="vertical", 
-                                   command=self.content_text.yview)
+        colors = self._colors
+        self.content_text = tk.Text(content_frame, wrap="word", height=10,
+                                     bg=colors["bg_input"],
+                                     fg=colors["fg"],
+                                     insertbackground=colors["fg"],
+                                     selectbackground=colors["accent"],
+                                     selectforeground=colors["fg_bright"])
+        scrollbar = tk.Scrollbar(content_frame, orient="vertical", 
+                                   command=self.content_text.yview,
+                                   bg=colors["scrollbar_bg"],
+                                   troughcolor=colors["bg_alt"],
+                                   activebackground=colors["scrollbar_fg"],
+                                   highlightthickness=0, borderwidth=0, width=14)
         self.content_text.configure(yscrollcommand=scrollbar.set)
         
         self.content_text.pack(side="left", fill="both", expand=True)
@@ -88,8 +124,12 @@ class AddEditCardDialog(BaseDialog):
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill="x")
         
-        ttk.Button(button_frame, text="OK", command=self.ok, width=10).pack(side="right", padx=(5, 0))
-        ttk.Button(button_frame, text="Cancel", command=self.cancel, width=10).pack(side="right")
+        ok_btn = make_toolbar_button(button_frame, "OK", self.ok,
+                                      self._colors, width=80, height=28)
+        ok_btn.pack(side="right", padx=(5, 0))
+        cancel_btn = make_toolbar_button(button_frame, "Cancel", self.cancel,
+                                          self._colors, width=80, height=28)
+        cancel_btn.pack(side="right")
         
         # Bind Enter in title to OK
         self.title_entry.bind("<Return>", lambda e: self.ok())
@@ -106,7 +146,7 @@ class SearchDialog(BaseDialog):
     
     def __init__(self, parent, on_find: Callable[[str, bool], None]):
         self.on_find = on_find
-        super().__init__(parent, "Find", width=350, height=140)
+        super().__init__(parent, "Find", width=350, height=180)
     
     def create_widgets(self):
         main_frame = ttk.Frame(self, padding="15")
@@ -128,10 +168,12 @@ class SearchDialog(BaseDialog):
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill="x", pady=(10, 0))
         
-        ttk.Button(button_frame, text="Find Next", command=self.find_next, 
-                   width=12).pack(side="right", padx=(5, 0))
-        ttk.Button(button_frame, text="Close", command=self.cancel, 
-                   width=10).pack(side="right")
+        find_btn = make_toolbar_button(button_frame, "Find Next", self.find_next,
+                                        self._colors, width=100, height=28)
+        find_btn.pack(side="right", padx=(5, 0))
+        close_btn = make_toolbar_button(button_frame, "Close", self.cancel,
+                                        self._colors, width=80, height=28)
+        close_btn.pack(side="right")
         
         # Bind Enter to find
         self.search_entry.bind("<Return>", lambda e: self.find_next())
@@ -147,7 +189,7 @@ class GoToDialog(BaseDialog):
     
     def __init__(self, parent, card_count: int):
         self.card_count = card_count
-        super().__init__(parent, "Go To Card", width=300, height=95)
+        super().__init__(parent, "Go To Card", width=300, height=125)
     
     def create_widgets(self):
         main_frame = ttk.Frame(self, padding="15")
@@ -167,8 +209,12 @@ class GoToDialog(BaseDialog):
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill="x")
         
-        ttk.Button(button_frame, text="Go", command=self.ok, width=10).pack(side="right", padx=(5, 0))
-        ttk.Button(button_frame, text="Cancel", command=self.cancel, width=10).pack(side="right")
+        go_btn = make_toolbar_button(button_frame, "Go", self.ok,
+                                      self._colors, width=80, height=28)
+        go_btn.pack(side="right", padx=(5, 0))
+        cancel_btn = make_toolbar_button(button_frame, "Cancel", self.cancel,
+                                          self._colors, width=80, height=28)
+        cancel_btn.pack(side="right")
         
         self.number_entry.bind("<Return>", lambda e: self.ok())
     
@@ -186,7 +232,7 @@ class AboutDialog(BaseDialog):
     """About dialog."""
     
     def __init__(self, parent):
-        super().__init__(parent, "About CardFile", width=300, height=200)
+        super().__init__(parent, "About CardFile", width=300, height=230)
     
     def create_widgets(self):
         main_frame = ttk.Frame(self, padding="20")
@@ -201,4 +247,6 @@ class AboutDialog(BaseDialog):
                   justify="center").pack()
         
         # OK button
-        ttk.Button(main_frame, text="OK", command=self.ok, width=10).pack(pady=(20, 0))
+        ok_btn = make_toolbar_button(main_frame, "OK", self.ok,
+                                      self._colors, width=80, height=28)
+        ok_btn.pack(pady=(20, 0))
